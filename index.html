@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
-        /* 样式保持不变（与之前相同） */
+        /* 样式完全保持不变，与之前相同（此处省略以节省篇幅，请复制原样式） */
         @font-face {
             font-family: 'Arial Black';
             src: url('ariblk.ttf') format('truetype');
@@ -361,7 +361,7 @@
             overflow: hidden;
             background-color: #2d2d2d;
             cursor: grab;
-            touch-action: none;
+            touch-action: none; /* 禁用默认触摸行为，由外部脚本控制 */
         }
         .canvas-area.dragging {
             cursor: grabbing;
@@ -534,6 +534,7 @@
         </div>
     </div>
     <script>
+        // ---------- 全局变量 ----------
         const MAP_WIDTH = 2415;
         const MAP_HEIGHT = 689;
         const FIXED_START_X = 128;
@@ -554,15 +555,23 @@
         const METRO_IMG = { 1:'line1.png', 2:'line2.png', 3:'line3.png', 4:'line4.png', 6:'line6.png', 8:'line8.png' };
         const BRT_IMG = 'BRT.png';
 
+        // 画布变换参数
         let scale = 1.0;
         let translateX = 0;
         let translateY = 0;
         const MIN_SCALE = 0.1;
         const MAX_SCALE = 10;
 
-        const panelWrapper = document.getElementById('panelWrapper');
         const canvasArea = document.getElementById('canvasArea');
         const mapContainer = document.getElementById('map-container');
+
+        // 应用变换
+        function applyTransform() {
+            mapContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        }
+
+        // ---------- 以下为其他功能（站点列表、存档等），与原代码一致 ----------
+        const panelWrapper = document.getElementById('panelWrapper');
         const lineNoInput = document.getElementById('lineNo');
         const startChineseInput = document.getElementById('startChinese');
         const startEnglishInput = document.getElementById('startStation');
@@ -581,87 +590,6 @@
             alert('该功能暂不开启');
         });
 
-        function applyTransform() {
-            mapContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
-        }
-
-        // 统一指针事件处理画布拖拽/缩放
-        let isDraggingCanvas = false;
-        let startTranslateX, startTranslateY, startMouseX, startMouseY;
-        let pinchDistance = 0;
-        let pinchScale = 1;
-
-        canvasArea.addEventListener('pointerdown', (e) => {
-            if (e.pointerType === 'mouse' && e.button !== 0) return;
-            e.preventDefault();
-            canvasArea.setPointerCapture(e.pointerId);
-            if (e.isPrimary && !e.ctrlKey) {
-                // 单点拖拽
-                isDraggingCanvas = true;
-                canvasArea.classList.add('dragging');
-                startTranslateX = translateX;
-                startTranslateY = translateY;
-                startMouseX = e.clientX;
-                startMouseY = e.clientY;
-            }
-        });
-
-        canvasArea.addEventListener('pointermove', (e) => {
-            if (!canvasArea.hasPointerCapture(e.pointerId)) return;
-            e.preventDefault();
-            if (isDraggingCanvas && e.isPrimary && !e.ctrlKey) {
-                const dx = e.clientX - startMouseX;
-                const dy = e.clientY - startMouseY;
-                translateX = startTranslateX + dx;
-                translateY = startTranslateY + dy;
-                applyTransform();
-            }
-        });
-
-        canvasArea.addEventListener('pointerup', (e) => {
-            if (!canvasArea.hasPointerCapture(e.pointerId)) return;
-            e.preventDefault();
-            canvasArea.releasePointerCapture(e.pointerId);
-            if (isDraggingCanvas && e.isPrimary) {
-                isDraggingCanvas = false;
-                canvasArea.classList.remove('dragging');
-            }
-        });
-
-        canvasArea.addEventListener('pointercancel', (e) => {
-            if (!canvasArea.hasPointerCapture(e.pointerId)) return;
-            canvasArea.releasePointerCapture(e.pointerId);
-            isDraggingCanvas = false;
-            canvasArea.classList.remove('dragging');
-        });
-
-        // 滚轮缩放（桌面）
-        canvasArea.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const delta = e.deltaY > 0 ? 0.9 : 1.1;
-            scale *= delta;
-            scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
-            applyTransform();
-        });
-
-        // 手势缩放（触摸板/双指）
-        canvasArea.addEventListener('gesturestart', (e) => {
-            e.preventDefault();
-            pinchScale = scale;
-        });
-
-        canvasArea.addEventListener('gesturechange', (e) => {
-            e.preventDefault();
-            scale = pinchScale * e.scale;
-            scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
-            applyTransform();
-        });
-
-        canvasArea.addEventListener('gestureend', (e) => {
-            e.preventDefault();
-        });
-
-        // 控制盘折叠
         window.togglePanel = () => {
             panelWrapper.classList.toggle('collapsed');
             const btn = document.querySelector('.collapse-btn');
@@ -1070,6 +998,14 @@
         endEnglishInput.addEventListener('input', updateDisplay);
         lineNoInput.addEventListener('input', updateDisplay);
 
+        // 自动检测设备并加载对应的交互脚本
+        function loadScript(src) {
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = false; // 确保顺序执行
+            document.body.appendChild(script);
+        }
+
         window.addEventListener('load', () => {
             mainStation.name = startChineseInput.value;
             subStation = { name: endChineseInput.value, metroLines: [4], isBRT: false };
@@ -1079,8 +1015,15 @@
                 scale = 0.5;
                 translateX = (window.innerWidth * 0.5 - 2415 * 0.5) / 1;
                 translateY = 0;
+                applyTransform();
             }
-            applyTransform();
+
+            // 根据触摸能力加载对应脚本
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+                loadScript('phonetouch.js');   // 手机/平板
+            } else {
+                loadScript('cmputertouch.js'); // 电脑
+            }
         });
 
         window.exportSave = () => {
