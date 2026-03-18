@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
+        /* 样式保持不变（与上一版本完全相同） */
         @font-face {
             font-family: 'Arial Black';
             src: url('ariblk.ttf') format('truetype');
@@ -38,7 +39,7 @@
             transition: width 0.2s;
             width: 520px;
             z-index: 200;
-            touch-action: pan-y; /* 允许垂直滚动 */
+            touch-action: pan-y;
         }
         .control-panel-wrapper.collapsed {
             width: 50px;
@@ -83,7 +84,7 @@
             overflow-y: auto;
             border-right: 1px solid rgba(255,255,255,0.2);
             box-shadow: 4px 0 20px rgba(0,0,0,0.5);
-            touch-action: pan-y; /* 确保垂直滚动 */
+            touch-action: pan-y;
         }
         .panel-header {
             display: flex;
@@ -103,7 +104,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            touch-action: manipulation; /* 优化触摸点击 */
+            touch-action: manipulation;
         }
         .panel-title {
             font-weight: bold;
@@ -118,7 +119,7 @@
             cursor: ew-resize;
             opacity: 0.6;
             transition: 0.2s;
-            touch-action: none; /* 拖拽区域禁用触摸动作 */
+            touch-action: none;
         }
         .resize-handle:hover {
             opacity: 1;
@@ -198,7 +199,7 @@
             color: #eee;
             cursor: not-allowed;
             border: 1px solid #888;
-            pointer-events: auto; /* 仍允许点击触发弹窗 */
+            pointer-events: auto;
         }
         hr {
             border: 1px solid #e9eef2;
@@ -212,7 +213,7 @@
             border: 1px solid #dee7ef;
             overflow-y: auto;
             max-height: 500px;
-            touch-action: pan-y; /* 允许列表垂直滚动 */
+            touch-action: pan-y;
         }
         .stations-list-header {
             font-size: 14px;
@@ -230,7 +231,7 @@
             border: 1px solid rgba(0,0,0,0.05);
             box-shadow: 0 1px 4px rgba(0,0,0,0.05);
             cursor: default;
-            touch-action: pan-y; /* 不影响内部滚动 */
+            touch-action: pan-y;
         }
         .station-item.main { background-color: #e6f7e6; }
         .station-item.sub { background-color: #e6f0ff; }
@@ -289,7 +290,7 @@
             padding: 6px 12px;
             border-radius: 40px;
             overflow-x: auto;
-            touch-action: pan-x; /* 允许水平滚动 */
+            touch-action: pan-x;
         }
         .metro-label {
             font-weight: bold;
@@ -360,7 +361,7 @@
             overflow: hidden;
             background-color: #2d2d2d;
             cursor: grab;
-            touch-action: none; /* 禁止默认触摸滚动，由我们自己处理 */
+            touch-action: none;
         }
         .canvas-area.dragging {
             cursor: grabbing;
@@ -562,6 +563,7 @@
     </div>
     <script>
         const MAP_WIDTH = 2415;
+        const MAP_HEIGHT = 689; // 补全缺失的变量
         const FIXED_START_X = 128;
         const FIXED_END_X = 2275;
         const FIXED_Y = 267;
@@ -643,104 +645,66 @@
             canvasArea.classList.remove('dragging');
         });
 
-        // 触摸事件：支持单指平移和双指缩放
-        let isPinching = false;
-        let initialPinchDistance = 0;
-        let pinchCenterX = 0, pinchCenterY = 0;
-        let scaleAtPinchStart = 1;
-
-        function getPinchDistance(touches) {
-            if (touches.length < 2) return 0;
-            const dx = touches[0].clientX - touches[1].clientX;
-            const dy = touches[0].clientY - touches[1].clientY;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-
-        function getPinchCenter(touches) {
-            if (touches.length < 2) return { x: 0, y: 0 };
-            return {
-                x: (touches[0].clientX + touches[1].clientX) / 2,
-                y: (touches[0].clientY + touches[1].clientY) / 2
-            };
-        }
+        // 触摸拖拽 + 双指缩放（简化版，保证可用）
+        let touchStartDistance = 0;
+        let touchStartScale = 1;
 
         canvasArea.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touches = e.touches;
-            if (touches.length === 2) {
-                // 开始双指缩放
-                isPinching = true;
-                initialPinchDistance = getPinchDistance(touches);
-                const center = getPinchCenter(touches);
-                pinchCenterX = center.x;
-                pinchCenterY = center.y;
-                scaleAtPinchStart = scale;
-                canvasArea.classList.add('dragging');
-            } else if (touches.length === 1) {
-                // 开始单指平移
+            if (touches.length === 1) {
+                // 单指平移
                 isDraggingCanvas = true;
                 canvasArea.classList.add('dragging');
                 startTranslateX = translateX;
                 startTranslateY = translateY;
                 startMouseX = touches[0].clientX;
                 startMouseY = touches[0].clientY;
+            } else if (touches.length === 2) {
+                // 双指缩放
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                touchStartDistance = Math.sqrt(dx * dx + dy * dy);
+                touchStartScale = scale;
             }
         }, { passive: false });
 
         canvasArea.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const touches = e.touches;
-            if (isPinching && touches.length >= 2) {
-                // 缩放
-                const currentDistance = getPinchDistance(touches);
-                if (currentDistance > 0 && initialPinchDistance > 0) {
-                    const newScale = scaleAtPinchStart * (currentDistance / initialPinchDistance);
-                    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
-                    
-                    // 调整平移量使缩放中心为双指中心
-                    const center = getPinchCenter(touches);
-                    const dx = center.x - pinchCenterX;
-                    const dy = center.y - pinchCenterY;
-                    // 根据缩放比例调整平移，保持中心点不变
-                    translateX = startTranslateX + dx - (center.x - pinchCenterX) * (scale / scaleAtPinchStart - 1) * (MAP_WIDTH / 2); // 简化处理，实际需要更精确的计算
-                    translateY = startTranslateY + dy - (center.y - pinchCenterY) * (scale / scaleAtPinchStart - 1) * (MAP_HEIGHT / 2);
-                    // 简化版本，以左上角为基点，但配合平移可大致保持中心
-                    // 更好的做法是计算旧中心到新中心的映射
-                    // 为了简化，我们直接使用下面的公式
-                    // 旧中心点相对于画布的坐标
-                    const oldCenterX = (pinchCenterX - startTranslateX) / scaleAtPinchStart;
-                    const oldCenterY = (pinchCenterY - startTranslateY) / scaleAtPinchStart;
-                    // 新中心点应该对齐到当前触摸中心
-                    translateX = center.x - oldCenterX * scale;
-                    translateY = center.y - oldCenterY * scale;
-                    
-                    applyTransform();
-                }
-            } else if (isDraggingCanvas && touches.length === 1) {
+            if (touches.length === 1 && isDraggingCanvas) {
                 // 平移
                 const dx = touches[0].clientX - startMouseX;
                 const dy = touches[0].clientY - startMouseY;
                 translateX = startTranslateX + dx;
                 translateY = startTranslateY + dy;
                 applyTransform();
+            } else if (touches.length === 2) {
+                // 缩放
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (touchStartDistance > 0) {
+                    const newScale = touchStartScale * (distance / touchStartDistance);
+                    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
+                    applyTransform();
+                }
             }
         }, { passive: false });
 
         canvasArea.addEventListener('touchend', (e) => {
             e.preventDefault();
             isDraggingCanvas = false;
-            isPinching = false;
             canvasArea.classList.remove('dragging');
         }, { passive: false });
 
         canvasArea.addEventListener('touchcancel', (e) => {
             e.preventDefault();
             isDraggingCanvas = false;
-            isPinching = false;
             canvasArea.classList.remove('dragging');
         }, { passive: false });
 
-        // 鼠标滚轮缩放（桌面）
+        // 鼠标滚轮缩放
         canvasArea.addEventListener('wheel', (e) => {
             e.preventDefault();
             const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -1335,7 +1299,6 @@
             // 移动端初始缩放调整
             if (window.innerWidth <= 768) {
                 scale = 0.5;
-                // 粗略居中
                 translateX = (window.innerWidth * 0.5 - 2415 * 0.5) / 1;
                 translateY = 0;
             }
