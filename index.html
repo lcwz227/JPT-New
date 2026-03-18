@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
-        /* 样式保持不变（与上一版本完全相同） */
+        /* 样式保持不变（与之前相同） */
         @font-face {
             font-family: 'Arial Black';
             src: url('ariblk.ttf') format('truetype');
@@ -444,50 +444,22 @@
             object-fit: contain;
             display: block;
         }
-
-        /* 手机端适配 */
         @media (max-width: 768px) {
-            body {
-                flex-direction: column;
-            }
+            body { flex-direction: column; }
             .control-panel-wrapper {
                 width: 100% !important;
                 height: 60vh;
                 max-height: 500px;
             }
-            .resize-handle {
-                display: none;
-            }
-            .control-panel {
-                padding: 12px;
-                gap: 10px;
-            }
-            .panel-header .panel-title {
-                font-size: 14px;
-            }
-            .stations-list {
-                max-height: 200px;
-            }
-            .station-name-input {
-                font-size: 13px;
-                padding: 6px 8px;
-            }
-            .dir-btn {
-                width: 32px;
-                height: 32px;
-                font-size: 13px;
-            }
-            .metro-checkbox {
-                font-size: 12px;
-            }
-            .btn {
-                padding: 10px 12px;
-                font-size: 13px;
-            }
-            .canvas-area {
-                flex: 1;
-                height: 40vh;
-            }
+            .resize-handle { display: none; }
+            .control-panel { padding: 12px; gap: 10px; }
+            .panel-header .panel-title { font-size: 14px; }
+            .stations-list { max-height: 200px; }
+            .station-name-input { font-size: 13px; padding: 6px 8px; }
+            .dir-btn { width: 32px; height: 32px; font-size: 13px; }
+            .metro-checkbox { font-size: 12px; }
+            .btn { padding: 10px 12px; font-size: 13px; }
+            .canvas-area { flex: 1; height: 40vh; }
         }
     </style>
 </head>
@@ -563,7 +535,7 @@
     </div>
     <script>
         const MAP_WIDTH = 2415;
-        const MAP_HEIGHT = 689; // 补全缺失的变量
+        const MAP_HEIGHT = 689;
         const FIXED_START_X = 128;
         const FIXED_END_X = 2275;
         const FIXED_Y = 267;
@@ -589,12 +561,8 @@
         const MAX_SCALE = 10;
 
         const panelWrapper = document.getElementById('panelWrapper');
-        const controlPanel = document.getElementById('controlPanel');
-        const collapsedTab = document.getElementById('collapsedTab');
-        const resizeHandle = document.getElementById('resizeHandle');
         const canvasArea = document.getElementById('canvasArea');
         const mapContainer = document.getElementById('map-container');
-
         const lineNoInput = document.getElementById('lineNo');
         const startChineseInput = document.getElementById('startChinese');
         const startEnglishInput = document.getElementById('startStation');
@@ -606,8 +574,9 @@
         const tabStationBtn = document.getElementById('tabStationBtn');
         const linePage = document.getElementById('linePage');
         const stationPage = document.getElementById('stationPage');
+        const resizeHandle = document.getElementById('resizeHandle');
 
-        document.getElementById('exportBtn').addEventListener('click', function(e) {
+        document.getElementById('exportBtn').addEventListener('click', e => {
             e.preventDefault();
             alert('该功能暂不开启');
         });
@@ -616,133 +585,111 @@
             mapContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
         }
 
-        // 鼠标拖拽
+        // 统一指针事件处理画布拖拽/缩放
         let isDraggingCanvas = false;
         let startTranslateX, startTranslateY, startMouseX, startMouseY;
+        let pinchDistance = 0;
+        let pinchScale = 1;
 
-        canvasArea.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
+        canvasArea.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
             e.preventDefault();
-            isDraggingCanvas = true;
-            canvasArea.classList.add('dragging');
-            startTranslateX = translateX;
-            startTranslateY = translateY;
-            startMouseX = e.clientX;
-            startMouseY = e.clientY;
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isDraggingCanvas) return;
-            const dx = e.clientX - startMouseX;
-            const dy = e.clientY - startMouseY;
-            translateX = startTranslateX + dx;
-            translateY = startTranslateY + dy;
-            applyTransform();
-        });
-
-        document.addEventListener('mouseup', () => {
-            isDraggingCanvas = false;
-            canvasArea.classList.remove('dragging');
-        });
-
-        // 触摸拖拽 + 双指缩放（简化版，保证可用）
-        let touchStartDistance = 0;
-        let touchStartScale = 1;
-
-        canvasArea.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touches = e.touches;
-            if (touches.length === 1) {
-                // 单指平移
+            canvasArea.setPointerCapture(e.pointerId);
+            if (e.isPrimary && !e.ctrlKey) {
+                // 单点拖拽
                 isDraggingCanvas = true;
                 canvasArea.classList.add('dragging');
                 startTranslateX = translateX;
                 startTranslateY = translateY;
-                startMouseX = touches[0].clientX;
-                startMouseY = touches[0].clientY;
-            } else if (touches.length === 2) {
-                // 双指缩放
-                const dx = touches[0].clientX - touches[1].clientX;
-                const dy = touches[0].clientY - touches[1].clientY;
-                touchStartDistance = Math.sqrt(dx * dx + dy * dy);
-                touchStartScale = scale;
+                startMouseX = e.clientX;
+                startMouseY = e.clientY;
             }
-        }, { passive: false });
+        });
 
-        canvasArea.addEventListener('touchmove', (e) => {
+        canvasArea.addEventListener('pointermove', (e) => {
+            if (!canvasArea.hasPointerCapture(e.pointerId)) return;
             e.preventDefault();
-            const touches = e.touches;
-            if (touches.length === 1 && isDraggingCanvas) {
-                // 平移
-                const dx = touches[0].clientX - startMouseX;
-                const dy = touches[0].clientY - startMouseY;
+            if (isDraggingCanvas && e.isPrimary && !e.ctrlKey) {
+                const dx = e.clientX - startMouseX;
+                const dy = e.clientY - startMouseY;
                 translateX = startTranslateX + dx;
                 translateY = startTranslateY + dy;
                 applyTransform();
-            } else if (touches.length === 2) {
-                // 缩放
-                const dx = touches[0].clientX - touches[1].clientX;
-                const dy = touches[0].clientY - touches[1].clientY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (touchStartDistance > 0) {
-                    const newScale = touchStartScale * (distance / touchStartDistance);
-                    scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
-                    applyTransform();
-                }
             }
-        }, { passive: false });
+        });
 
-        canvasArea.addEventListener('touchend', (e) => {
+        canvasArea.addEventListener('pointerup', (e) => {
+            if (!canvasArea.hasPointerCapture(e.pointerId)) return;
             e.preventDefault();
+            canvasArea.releasePointerCapture(e.pointerId);
+            if (isDraggingCanvas && e.isPrimary) {
+                isDraggingCanvas = false;
+                canvasArea.classList.remove('dragging');
+            }
+        });
+
+        canvasArea.addEventListener('pointercancel', (e) => {
+            if (!canvasArea.hasPointerCapture(e.pointerId)) return;
+            canvasArea.releasePointerCapture(e.pointerId);
             isDraggingCanvas = false;
             canvasArea.classList.remove('dragging');
-        }, { passive: false });
+        });
 
-        canvasArea.addEventListener('touchcancel', (e) => {
-            e.preventDefault();
-            isDraggingCanvas = false;
-            canvasArea.classList.remove('dragging');
-        }, { passive: false });
-
-        // 鼠标滚轮缩放
+        // 滚轮缩放（桌面）
         canvasArea.addEventListener('wheel', (e) => {
             e.preventDefault();
             const delta = e.deltaY > 0 ? 0.9 : 1.1;
             scale *= delta;
-            if (scale < MIN_SCALE) scale = MIN_SCALE;
-            if (scale > MAX_SCALE) scale = MAX_SCALE;
+            scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
             applyTransform();
         });
 
-        window.togglePanel = function() {
+        // 手势缩放（触摸板/双指）
+        canvasArea.addEventListener('gesturestart', (e) => {
+            e.preventDefault();
+            pinchScale = scale;
+        });
+
+        canvasArea.addEventListener('gesturechange', (e) => {
+            e.preventDefault();
+            scale = pinchScale * e.scale;
+            scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
+            applyTransform();
+        });
+
+        canvasArea.addEventListener('gestureend', (e) => {
+            e.preventDefault();
+        });
+
+        // 控制盘折叠
+        window.togglePanel = () => {
             panelWrapper.classList.toggle('collapsed');
-            const collapseBtn = document.querySelector('.collapse-btn');
-            if (collapseBtn) {
-                collapseBtn.textContent = panelWrapper.classList.contains('collapsed') ? '▶' : '◀';
-            }
+            const btn = document.querySelector('.collapse-btn');
+            if (btn) btn.textContent = panelWrapper.classList.contains('collapsed') ? '▶' : '◀';
         };
 
+        // 控制盘宽度拖拽
         let startX, startWidth;
-        resizeHandle.addEventListener('mousedown', function(e) {
+        resizeHandle.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
             startX = e.clientX;
             startWidth = panelWrapper.offsetWidth;
-            document.addEventListener('mousemove', resizeMove);
-            document.addEventListener('mouseup', resizeStop);
-            e.preventDefault();
+            document.addEventListener('pointermove', resizeMove);
+            document.addEventListener('pointerup', resizeStop);
         });
 
         function resizeMove(e) {
             let newWidth = startWidth + (e.clientX - startX);
-            if (newWidth < 150) newWidth = 150;
-            if (newWidth > 800) newWidth = 800;
+            newWidth = Math.min(800, Math.max(150, newWidth));
             panelWrapper.style.width = newWidth + 'px';
         }
 
         function resizeStop() {
-            document.removeEventListener('mousemove', resizeMove);
-            document.removeEventListener('mouseup', resizeStop);
+            document.removeEventListener('pointermove', resizeMove);
+            document.removeEventListener('pointerup', resizeStop);
         }
 
+        // 选项卡
         tabLineBtn.addEventListener('click', () => {
             tabLineBtn.classList.add('active');
             tabStationBtn.classList.remove('active');
@@ -763,142 +710,93 @@
 
             const mainDiv = createStationItem('main', mainStation, true);
             container.appendChild(mainDiv);
-
-            stations.forEach((station, index) => {
-                const middleDiv = createStationItem('middle', station, false, index);
-                container.appendChild(middleDiv);
-            });
-
-            const subDiv = createStationItem('sub', subStation, true);
-            container.appendChild(subDiv);
+            stations.forEach((s, i) => container.appendChild(createStationItem('middle', s, false, i)));
+            container.appendChild(createStationItem('sub', subStation, true));
 
             new Sortable(container, {
                 animation: 150,
                 handle: '.station-item.middle',
                 onEnd: (evt) => {
-                    const oldIndex = evt.oldIndex;
-                    const newIndex = evt.newIndex;
-                    
-                    if (newIndex === 0) {
-                        const movedStation = stations[oldIndex - 1];
-                        if (movedStation) {
-                            const oldMain = { 
-                                name: mainStation.name, 
-                                metroLines: [...mainStation.metroLines], 
-                                isBRT: mainStation.isBRT,
-                                direction: 'both'
-                            };
-                            stations.splice(oldIndex - 1, 1);
-                            stations.splice(oldIndex - 1, 0, oldMain);
-                            mainStation = { 
-                                name: movedStation.name, 
-                                metroLines: [...movedStation.metroLines], 
-                                isBRT: movedStation.isBRT 
-                            };
-                            renderStationsList();
-                            updateDisplay();
+                    const oldIndex = evt.oldIndex - 1;
+                    const newIndex = evt.newIndex - 1;
+                    if (oldIndex === newIndex || oldIndex < 0 || newIndex < 0) return;
+                    if (evt.newIndex === 0) {
+                        // 成为主站
+                        const moved = stations[oldIndex];
+                        if (moved) {
+                            const oldMain = { ...mainStation, direction: 'both' };
+                            stations.splice(oldIndex, 1);
+                            stations.splice(oldIndex, 0, oldMain);
+                            mainStation = { ...moved };
                         }
-                        return;
-                    }
-                    
-                    if (newIndex === stations.length + 1) {
-                        const movedStation = stations[oldIndex - 1];
-                        if (movedStation) {
-                            const oldSub = { 
-                                name: subStation.name, 
-                                metroLines: [...subStation.metroLines], 
-                                isBRT: subStation.isBRT,
-                                direction: 'both'
-                            };
-                            stations.splice(oldIndex - 1, 1);
-                            stations.splice(oldIndex - 1, 0, oldSub);
-                            subStation = { 
-                                name: movedStation.name, 
-                                metroLines: [...movedStation.metroLines], 
-                                isBRT: movedStation.isBRT 
-                            };
-                            renderStationsList();
-                            updateDisplay();
+                    } else if (evt.newIndex === stations.length + 1) {
+                        // 成为副站
+                        const moved = stations[oldIndex];
+                        if (moved) {
+                            const oldSub = { ...subStation, direction: 'both' };
+                            stations.splice(oldIndex, 1);
+                            stations.splice(oldIndex, 0, oldSub);
+                            subStation = { ...moved };
                         }
-                        return;
+                    } else {
+                        // 中间站重排
+                        const moved = stations.splice(oldIndex, 1)[0];
+                        stations.splice(newIndex, 0, moved);
                     }
-                    
-                    const oldMiddleIndex = oldIndex - 1;
-                    const newMiddleIndex = newIndex - 1;
-                    if (oldMiddleIndex !== newMiddleIndex && oldMiddleIndex >= 0 && newMiddleIndex >= 0 && oldMiddleIndex < stations.length && newMiddleIndex < stations.length) {
-                        const moved = stations.splice(oldMiddleIndex, 1)[0];
-                        stations.splice(newMiddleIndex, 0, moved);
-                        renderStationsList();
-                        updateDisplay();
-                    }
+                    renderStationsList();
+                    updateDisplay();
                 }
             });
         }
 
-        function createStationItem(type, data, isFixed, index = null) {
+        function createStationItem(type, data, isFixed, index) {
             const div = document.createElement('div');
             div.className = `station-item ${type}`;
-
-            const row1 = document.createElement('div');
-            row1.className = 'station-row';
+            const row = document.createElement('div');
+            row.className = 'station-row';
 
             const nameInput = document.createElement('input');
-            nameInput.type = 'text';
             nameInput.className = 'station-name-input';
             nameInput.value = data.name;
-            nameInput.addEventListener('input', (e) => {
+            nameInput.addEventListener('input', e => {
                 data.name = e.target.value;
                 updateDisplay();
             });
-            nameInput.setAttribute('autocomplete', 'off');
-            nameInput.setAttribute('spellcheck', 'false');
-            row1.appendChild(nameInput);
+            row.appendChild(nameInput);
 
             if (type === 'middle') {
                 const btnGroup = document.createElement('div');
                 btnGroup.className = 'direction-buttons';
-                const upBtn = document.createElement('button');
-                upBtn.className = `dir-btn ${data.direction === 'up' ? 'active' : ''}`;
-                upBtn.innerHTML = '上';
-                upBtn.onclick = (e) => { e.stopPropagation(); data.direction = 'up'; renderStationsList(); updateDisplay(); };
-                const downBtn = document.createElement('button');
-                downBtn.className = `dir-btn ${data.direction === 'down' ? 'active' : ''}`;
-                downBtn.innerHTML = '下';
-                downBtn.onclick = (e) => { e.stopPropagation(); data.direction = 'down'; renderStationsList(); updateDisplay(); };
-                const bothBtn = document.createElement('button');
-                bothBtn.className = `dir-btn ${data.direction === 'both' ? 'active' : ''}`;
-                bothBtn.innerHTML = '双';
-                bothBtn.onclick = (e) => { e.stopPropagation(); data.direction = 'both'; renderStationsList(); updateDisplay(); };
-                btnGroup.appendChild(upBtn);
-                btnGroup.appendChild(downBtn);
-                btnGroup.appendChild(bothBtn);
-                row1.appendChild(btnGroup);
-            }
-
-            if (type === 'middle') {
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'btn-delete';
-                deleteBtn.innerHTML = '✕';
-                deleteBtn.onclick = (e) => {
+                ['上','下','双'].forEach((text, i) => {
+                    const btn = document.createElement('button');
+                    btn.className = `dir-btn ${(i===0 && data.direction==='up') || (i===1 && data.direction==='down') || (i===2 && data.direction==='both') ? 'active' : ''}`;
+                    btn.innerHTML = text;
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        data.direction = i===0 ? 'up' : i===1 ? 'down' : 'both';
+                        renderStationsList();
+                        updateDisplay();
+                    };
+                    btnGroup.appendChild(btn);
+                });
+                row.appendChild(btnGroup);
+                const del = document.createElement('button');
+                del.className = 'btn-delete';
+                del.innerHTML = '✕';
+                del.onclick = (e) => {
                     e.stopPropagation();
                     stations.splice(index, 1);
                     renderStationsList();
                     updateDisplay();
                 };
-                row1.appendChild(deleteBtn);
+                row.appendChild(del);
             }
-
-            div.appendChild(row1);
+            div.appendChild(row);
 
             const metroDiv = document.createElement('div');
             metroDiv.className = 'metro-section';
-            const metroLabel = document.createElement('span');
-            metroLabel.className = 'metro-label';
-            metroLabel.textContent = '地铁换乘线:';
-            metroDiv.appendChild(metroLabel);
-
-            const lines = [1,2,3,4,6,8];
-            lines.forEach(ln => {
+            metroDiv.innerHTML = '<span class="metro-label">地铁换乘线:</span>';
+            [1,2,3,4,6,8].forEach(ln => {
                 const label = document.createElement('label');
                 label.className = 'metro-checkbox';
                 const cb = document.createElement('input');
@@ -906,11 +804,8 @@
                 cb.value = ln;
                 cb.checked = data.metroLines.includes(ln);
                 cb.addEventListener('change', () => {
-                    if (cb.checked) {
-                        if (!data.metroLines.includes(ln)) data.metroLines.push(ln);
-                    } else {
-                        data.metroLines = data.metroLines.filter(v => v !== ln);
-                    }
+                    if (cb.checked) data.metroLines = [...data.metroLines, ln];
+                    else data.metroLines = data.metroLines.filter(v => v !== ln);
                     updateDisplay();
                 });
                 label.appendChild(cb);
@@ -934,34 +829,31 @@
             brtLabel.appendChild(document.createTextNode('BRT站点'));
             brtRow.appendChild(brtLabel);
             div.appendChild(brtRow);
-
             return div;
         }
 
-        window.addStation = function() {
+        window.addStation = () => {
             const name = newStationInput.value.trim();
             if (name) {
-                stations.push({ name: name, direction: 'both', metroLines: [], isBRT: false });
+                stations.push({ name, direction: 'both', metroLines: [], isBRT: false });
                 newStationInput.value = '';
                 renderStationsList();
                 updateDisplay();
             }
         };
 
-        window.batchAdd = function() {
-            const input = document.getElementById('batchNames');
-            const namesStr = input.value.trim();
+        window.batchAdd = () => {
+            const namesStr = document.getElementById('batchNames').value.trim();
             if (!namesStr) return;
-            const names = namesStr.split(/[,，]\s*/).map(s => s.trim()).filter(s => s);
-            names.forEach(name => {
-                stations.push({ name: name, direction: 'both', metroLines: [], isBRT: false });
+            namesStr.split(/[,，]\s*/).map(s => s.trim()).filter(s => s).forEach(name => {
+                stations.push({ name, direction: 'both', metroLines: [], isBRT: false });
             });
-            input.value = '';
+            document.getElementById('batchNames').value = '';
             renderStationsList();
             updateDisplay();
         };
 
-        window.deleteAllStations = function() {
+        window.deleteAllStations = () => {
             if (confirm('确定要删除所有中间站吗？')) {
                 stations = [];
                 renderStationsList();
@@ -969,7 +861,7 @@
             }
         };
 
-        window.clearAll = function() {
+        window.clearAll = () => {
             if (confirm('确定要清空所有内容吗？')) {
                 stations = [];
                 mainStation = { name: '主站', metroLines: [], isBRT: false };
@@ -986,63 +878,30 @@
 
         function redrawCanvas() {
             const mapContainer = document.getElementById('map-container');
-            const oldMarkers = mapContainer.querySelectorAll('.station-marker, .metro-marker');
-            oldMarkers.forEach(m => m.remove());
+            const old = mapContainer.querySelectorAll('.station-marker, .metro-marker');
+            old.forEach(m => m.remove());
 
             const startName = startEnglishInput.value;
             const endName = endEnglishInput.value;
+            const drawList = [
+                { type:'main', name:mainStation.name, x:FIXED_START_X, metroLines:mainStation.metroLines, isBRT:mainStation.isBRT },
+                ...stations.map(s => ({ type:'middle', name:s.name, direction:s.direction, x:null, metroLines:s.metroLines, isBRT:s.isBRT })),
+                { type:'sub', name:subStation.name, x:FIXED_END_X, metroLines:subStation.metroLines, isBRT:subStation.isBRT }
+            ];
 
-            const drawList = [];
-
-            drawList.push({
-                type: 'main',
-                name: mainStation.name,
-                x: FIXED_START_X,
-                metroLines: mainStation.metroLines || [],
-                isBRT: mainStation.isBRT || false
-            });
-
-            stations.forEach(s => {
-                drawList.push({
-                    type: 'middle',
-                    name: s.name,
-                    direction: s.direction,
-                    x: null,
-                    metroLines: s.metroLines || [],
-                    isBRT: s.isBRT || false
+            const middleIndices = drawList.reduce((acc,item,i) => item.type==='middle' ? [...acc,i] : acc, []);
+            const startExists = startName !== '';
+            const endExists = endName !== '';
+            if (middleIndices.length > 0) {
+                const left = startExists ? FIXED_START_X : 40;
+                const right = endExists ? FIXED_END_X : MAP_WIDTH - 40;
+                middleIndices.forEach((idx, i) => {
+                    drawList[idx].x = left + (right - left) * (i+1)/(middleIndices.length+1);
                 });
-            });
-
-            drawList.push({
-                type: 'sub',
-                name: subStation.name,
-                x: FIXED_END_X,
-                metroLines: subStation.metroLines || [],
-                isBRT: subStation.isBRT || false
-            });
-
-            const startNameExists = startName !== '';
-            const endNameExists = endName !== '';
-            const middleIndices = [];
-            drawList.forEach((item, idx) => { if (item.type === 'middle') middleIndices.push(idx); });
-            const middleCount = middleIndices.length;
-            if (middleCount > 0) {
-                let effectiveStartX = startNameExists ? FIXED_START_X : 40;
-                let effectiveEndX = endNameExists ? FIXED_END_X : MAP_WIDTH - 40;
-                if (!startNameExists && !endNameExists) {
-                    effectiveStartX = 40;
-                    effectiveEndX = MAP_WIDTH - 40;
-                }
-                for (let i = 0; i < middleCount; i++) {
-                    const t = (i + 1) / (middleCount + 1);
-                    const x = effectiveStartX + (effectiveEndX - effectiveStartX) * t;
-                    drawList[middleIndices[i]].x = x;
-                }
             }
 
             drawList.forEach(item => {
-                if (item.x === undefined || item.x === null) return;
-
+                if (item.x === null) return;
                 const marker = document.createElement('div');
                 marker.className = 'station-marker';
                 marker.style.left = (item.x - ICON_SIZE/2) + 'px';
@@ -1052,17 +911,13 @@
                 if (item.type === 'main') imgSrc = IMAGE_MAIN;
                 else if (item.type === 'sub') imgSrc = IMAGE_SUB;
                 else {
-                    if (item.direction === 'up') imgSrc = IMAGE_UP;
-                    else if (item.direction === 'down') imgSrc = IMAGE_DOWN;
-                    else imgSrc = IMAGE_BOTH;
+                    imgSrc = item.direction === 'up' ? IMAGE_UP : item.direction === 'down' ? IMAGE_DOWN : IMAGE_BOTH;
                 }
-
-                const iconImg = document.createElement('img');
-                iconImg.className = 'station-icon';
-                iconImg.src = imgSrc;
-                iconImg.alt = item.name;
-                iconImg.onerror = () => { console.error('图标加载失败:', imgSrc); };
-                marker.appendChild(iconImg);
+                const icon = document.createElement('img');
+                icon.className = 'station-icon';
+                icon.src = imgSrc;
+                icon.alt = item.name;
+                marker.appendChild(icon);
 
                 const label = document.createElement('div');
                 label.className = 'station-label';
@@ -1070,45 +925,35 @@
                 marker.appendChild(label);
 
                 if (item.isBRT) {
-                    const brtImg = document.createElement('img');
-                    brtImg.className = 'brt-marker';
-                    brtImg.src = BRT_IMG;
-                    brtImg.alt = 'BRT';
-                    brtImg.onerror = () => { console.error('BRT图标加载失败:', BRT_IMG); };
-                    marker.appendChild(brtImg);
+                    const brt = document.createElement('img');
+                    brt.className = 'brt-marker';
+                    brt.src = BRT_IMG;
+                    brt.alt = 'BRT';
+                    marker.appendChild(brt);
                 }
-
                 mapContainer.appendChild(marker);
-            });
 
-            drawList.forEach(item => {
-                if (item.x === undefined || item.x === null) return;
+                // 地铁标志
                 const lines = item.metroLines || [];
-                if (lines.length === 0) return;
                 lines.forEach((lineNum, idx) => {
                     const metroY = METRO_BASE_Y - 37 * (lines.length - 1 - idx);
-                    const metroMarker = document.createElement('div');
-                    metroMarker.className = 'metro-marker';
-                    metroMarker.style.left = item.x + 'px';
-                    metroMarker.style.top = metroY + 'px';
-
+                    const metro = document.createElement('div');
+                    metro.className = 'metro-marker';
+                    metro.style.left = item.x + 'px';
+                    metro.style.top = metroY + 'px';
                     const metroImg = document.createElement('img');
-                    const metroFile = METRO_IMG[lineNum];
-                    if (metroFile) {
-                        metroImg.src = metroFile;
-                        metroImg.alt = `line${lineNum}`;
-                        metroImg.onerror = () => { console.error('地铁图标加载失败:', metroFile); };
-                    }
-                    metroMarker.appendChild(metroImg);
-                    mapContainer.appendChild(metroMarker);
+                    metroImg.src = METRO_IMG[lineNum];
+                    metroImg.alt = `line${lineNum}`;
+                    metro.appendChild(metroImg);
+                    mapContainer.appendChild(metro);
                 });
             });
         }
 
-        function getTextWidth(text, fontSizePx, fontFamily) {
+        function getTextWidth(text, fontSize, fontFamily) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            ctx.font = `${fontSizePx}px ${fontFamily}`;
+            ctx.font = `${fontSize}px ${fontFamily}`;
             return ctx.measureText(text).width;
         }
 
@@ -1116,171 +961,109 @@
             const svg = document.getElementById('text-svg');
             svg.innerHTML = '';
 
-            const startChinese = startChineseInput.value || '';
-            const endChinese = endChineseInput.value || '';
-            const startEnglish = startEnglishInput.value || '';
-            const endEnglish = endEnglishInput.value || '';
+            const startCh = startChineseInput.value || '';
+            const endCh = endChineseInput.value || '';
+            const startEn = startEnglishInput.value || '';
+            const endEn = endEnglishInput.value || '';
             const lineNo = lineNoInput.value || 'B53';
 
-            const chineseFontFamily = '"Source Han Sans Bold", "思源黑体 Bold", "Noto Sans CJK SC Bold", "Microsoft YaHei", sans-serif';
-            const englishFontFamily = '"Source Han Sans Bold", "思源黑体 Bold", "Noto Sans CJK SC Bold", "Microsoft YaHei", sans-serif';
-            const lineNoFontFamily = '"Arial Black", "Arial Black", sans-serif';
+            const chFont = '"Source Han Sans Bold", "思源黑体 Bold", "Noto Sans CJK SC Bold", "Microsoft YaHei", sans-serif';
+            const enFont = '"Source Han Sans Bold", "思源黑体 Bold", "Noto Sans CJK SC Bold", "Microsoft YaHei", sans-serif';
+            const lineFont = '"Arial Black", "Arial Black", sans-serif';
 
-            const chineseFontSize = 53;
-            const englishFontSize = 22;
-            const lineNoFontSize = 90;
-
-            const startChineseWidth = getTextWidth(startChinese, chineseFontSize, chineseFontFamily);
-            const endChineseWidth = getTextWidth(endChinese, chineseFontSize, chineseFontFamily);
-            const dashWidth = getTextWidth('—', chineseFontSize, chineseFontFamily);
-
+            const chSize = 53, enSize = 22, lineSize = 90;
+            const startW = getTextWidth(startCh, chSize, chFont);
+            const endW = getTextWidth(endCh, chSize, chFont);
+            const dashW = getTextWidth('—', chSize, chFont);
             const gap = 10;
-            const startChineseX = 949;
-            const chineseY = 97;
-            const dashX = startChineseX + startChineseWidth + gap;
-            const endChineseX = dashX + dashWidth + gap;
-            const englishY = 121;
+            const x0 = 949;
+            const yCh = 97;
+            const dashX = x0 + startW + gap;
+            const endX = dashX + dashW + gap;
+            const yEn = 121;
 
-            const preservedStartEnglish = startEnglish.replace(/ /g, '\u00A0');
-            const preservedEndEnglish = endEnglish.replace(/ /g, '\u00A0');
+            const preservedStart = startEn.replace(/ /g, '\u00A0');
+            const preservedEnd = endEn.replace(/ /g, '\u00A0');
 
-            if (startChinese) {
-                const startChineseText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                startChineseText.setAttribute('x', startChineseX);
-                startChineseText.setAttribute('y', chineseY);
-                startChineseText.setAttribute('dominant-baseline', 'middle');
-                startChineseText.setAttribute('font-size', chineseFontSize + 'px');
-                startChineseText.setAttribute('fill', 'white');
-                startChineseText.setAttribute('font-family', chineseFontFamily);
-                startChineseText.setAttribute('font-weight', 'bold');
-                startChineseText.textContent = startChinese;
-                svg.appendChild(startChineseText);
+            if (startCh) {
+                const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                t.setAttribute('x', x0); t.setAttribute('y', yCh); t.setAttribute('dominant-baseline', 'middle');
+                t.setAttribute('font-size', chSize+'px'); t.setAttribute('fill', 'white');
+                t.setAttribute('font-family', chFont); t.setAttribute('font-weight', 'bold');
+                t.textContent = startCh; svg.appendChild(t);
             }
-
             const dash = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            dash.setAttribute('x', dashX);
-            dash.setAttribute('y', chineseY);
-            dash.setAttribute('dominant-baseline', 'middle');
-            dash.setAttribute('font-size', chineseFontSize + 'px');
-            dash.setAttribute('fill', 'white');
-            dash.setAttribute('font-family', chineseFontFamily);
-            dash.setAttribute('font-weight', 'bold');
-            dash.textContent = '—';
-            svg.appendChild(dash);
+            dash.setAttribute('x', dashX); dash.setAttribute('y', yCh); dash.setAttribute('dominant-baseline', 'middle');
+            dash.setAttribute('font-size', chSize+'px'); dash.setAttribute('fill', 'white');
+            dash.setAttribute('font-family', chFont); dash.setAttribute('font-weight', 'bold');
+            dash.textContent = '—'; svg.appendChild(dash);
 
-            if (endChinese) {
-                const endChineseText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                endChineseText.setAttribute('x', endChineseX);
-                endChineseText.setAttribute('y', chineseY);
-                endChineseText.setAttribute('dominant-baseline', 'middle');
-                endChineseText.setAttribute('font-size', chineseFontSize + 'px');
-                endChineseText.setAttribute('fill', 'white');
-                endChineseText.setAttribute('font-family', chineseFontFamily);
-                endChineseText.setAttribute('font-weight', 'bold');
-                endChineseText.textContent = endChinese;
-                svg.appendChild(endChineseText);
+            if (endCh) {
+                const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                t.setAttribute('x', endX); t.setAttribute('y', yCh); t.setAttribute('dominant-baseline', 'middle');
+                t.setAttribute('font-size', chSize+'px'); t.setAttribute('fill', 'white');
+                t.setAttribute('font-family', chFont); t.setAttribute('font-weight', 'bold');
+                t.textContent = endCh; svg.appendChild(t);
             }
 
-            if (startEnglish && endEnglish) {
-                const startEn = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                startEn.setAttribute('x', startChineseX);
-                startEn.setAttribute('y', englishY);
-                startEn.setAttribute('dominant-baseline', 'hanging');
-                startEn.setAttribute('font-size', englishFontSize + 'px');
-                startEn.setAttribute('fill', 'white');
-                startEn.setAttribute('font-family', englishFontFamily);
-                startEn.setAttribute('font-weight', 'bold');
-                startEn.setAttribute('textLength', startChineseWidth);
-                startEn.setAttribute('lengthAdjust', 'spacing');
-                startEn.setAttribute('xml:space', 'preserve');
-                startEn.textContent = preservedStartEnglish;
-                svg.appendChild(startEn);
+            if (startEn && endEn) {
+                const startT = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                startT.setAttribute('x', x0); startT.setAttribute('y', yEn); startT.setAttribute('dominant-baseline', 'hanging');
+                startT.setAttribute('font-size', enSize+'px'); startT.setAttribute('fill', 'white');
+                startT.setAttribute('font-family', enFont); startT.setAttribute('font-weight', 'bold');
+                startT.setAttribute('textLength', startW); startT.setAttribute('lengthAdjust', 'spacing');
+                startT.setAttribute('xml:space', 'preserve');
+                startT.textContent = preservedStart; svg.appendChild(startT);
 
-                const dashEnWidth = getTextWidth('—', englishFontSize, englishFontFamily);
-                const dashEnX = (startChineseX + startChineseWidth + endChineseX) / 2 - dashEnWidth / 2;
+                const dashEnW = getTextWidth('—', enSize, enFont);
+                const dashEnX = (x0 + startW + endX) / 2 - dashEnW / 2;
                 const dashEn = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                dashEn.setAttribute('x', dashEnX);
-                dashEn.setAttribute('y', englishY);
-                dashEn.setAttribute('dominant-baseline', 'hanging');
-                dashEn.setAttribute('font-size', englishFontSize + 'px');
-                dashEn.setAttribute('fill', 'white');
-                dashEn.setAttribute('font-family', chineseFontFamily);
-                dashEn.setAttribute('font-weight', 'bold');
-                dashEn.textContent = '—';
-                svg.appendChild(dashEn);
+                dashEn.setAttribute('x', dashEnX); dashEn.setAttribute('y', yEn); dashEn.setAttribute('dominant-baseline', 'hanging');
+                dashEn.setAttribute('font-size', enSize+'px'); dashEn.setAttribute('fill', 'white');
+                dashEn.setAttribute('font-family', chFont); dashEn.setAttribute('font-weight', 'bold');
+                dashEn.textContent = '—'; svg.appendChild(dashEn);
 
-                const endEn = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                endEn.setAttribute('x', endChineseX + endChineseWidth);
-                endEn.setAttribute('y', englishY);
-                endEn.setAttribute('text-anchor', 'end');
-                endEn.setAttribute('dominant-baseline', 'hanging');
-                endEn.setAttribute('font-size', englishFontSize + 'px');
-                endEn.setAttribute('fill', 'white');
-                endEn.setAttribute('font-family', englishFontFamily);
-                endEn.setAttribute('font-weight', 'bold');
-                endEn.setAttribute('textLength', endChineseWidth);
-                endEn.setAttribute('lengthAdjust', 'spacing');
-                endEn.setAttribute('xml:space', 'preserve');
-                endEn.textContent = preservedEndEnglish;
-                svg.appendChild(endEn);
-            } else if (startEnglish && !endEnglish) {
-                const startEn = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                startEn.setAttribute('x', startChineseX);
-                startEn.setAttribute('y', englishY);
-                startEn.setAttribute('dominant-baseline', 'hanging');
-                startEn.setAttribute('font-size', englishFontSize + 'px');
-                startEn.setAttribute('fill', 'white');
-                startEn.setAttribute('font-family', englishFontFamily);
-                startEn.setAttribute('font-weight', 'bold');
-                startEn.setAttribute('textLength', startChineseWidth);
-                startEn.setAttribute('lengthAdjust', 'spacing');
-                startEn.setAttribute('xml:space', 'preserve');
-                startEn.textContent = preservedStartEnglish;
-                svg.appendChild(startEn);
-            } else if (!startEnglish && endEnglish) {
-                const endEn = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                endEn.setAttribute('x', endChineseX + endChineseWidth);
-                endEn.setAttribute('y', englishY);
-                endEn.setAttribute('text-anchor', 'end');
-                endEn.setAttribute('dominant-baseline', 'hanging');
-                endEn.setAttribute('font-size', englishFontSize + 'px');
-                endEn.setAttribute('fill', 'white');
-                endEn.setAttribute('font-family', englishFontFamily);
-                endEn.setAttribute('font-weight', 'bold');
-                endEn.setAttribute('textLength', endChineseWidth);
-                endEn.setAttribute('lengthAdjust', 'spacing');
-                endEn.setAttribute('xml:space', 'preserve');
-                endEn.textContent = preservedEndEnglish;
-                svg.appendChild(endEn);
+                const endT = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                endT.setAttribute('x', endX + endW); endT.setAttribute('y', yEn); endT.setAttribute('text-anchor', 'end');
+                endT.setAttribute('dominant-baseline', 'hanging'); endT.setAttribute('font-size', enSize+'px');
+                endT.setAttribute('fill', 'white'); endT.setAttribute('font-family', enFont); endT.setAttribute('font-weight', 'bold');
+                endT.setAttribute('textLength', endW); endT.setAttribute('lengthAdjust', 'spacing');
+                endT.setAttribute('xml:space', 'preserve');
+                endT.textContent = preservedEnd; svg.appendChild(endT);
+            } else if (startEn) {
+                const startT = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                startT.setAttribute('x', x0); startT.setAttribute('y', yEn); startT.setAttribute('dominant-baseline', 'hanging');
+                startT.setAttribute('font-size', enSize+'px'); startT.setAttribute('fill', 'white');
+                startT.setAttribute('font-family', enFont); startT.setAttribute('font-weight', 'bold');
+                startT.setAttribute('textLength', startW); startT.setAttribute('lengthAdjust', 'spacing');
+                startT.setAttribute('xml:space', 'preserve');
+                startT.textContent = preservedStart; svg.appendChild(startT);
+            } else if (endEn) {
+                const endT = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                endT.setAttribute('x', endX + endW); endT.setAttribute('y', yEn); endT.setAttribute('text-anchor', 'end');
+                endT.setAttribute('dominant-baseline', 'hanging'); endT.setAttribute('font-size', enSize+'px');
+                endT.setAttribute('fill', 'white'); endT.setAttribute('font-family', enFont); endT.setAttribute('font-weight', 'bold');
+                endT.setAttribute('textLength', endW); endT.setAttribute('lengthAdjust', 'spacing');
+                endT.setAttribute('xml:space', 'preserve');
+                endT.textContent = preservedEnd; svg.appendChild(endT);
             }
 
-            const lineNoGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            lineNoGroup.setAttribute('transform', `translate(768.75,111.09) scale(0.93,1)`);
-            const lineNoText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            lineNoText.setAttribute('x', '0');
-            lineNoText.setAttribute('y', '0');
-            lineNoText.setAttribute('text-anchor', 'middle');
-            lineNoText.setAttribute('dominant-baseline', 'middle');
-            lineNoText.setAttribute('font-size', lineNoFontSize + 'px');
-            lineNoText.setAttribute('font-weight', 'bold');
-            lineNoText.setAttribute('fill', 'white');
-            lineNoText.setAttribute('font-family', lineNoFontFamily);
-            lineNoText.setAttribute('letter-spacing', '0.02em');
-            lineNoText.setAttribute('line-height', '40pt');
-            lineNoText.textContent = lineNo;
-            lineNoGroup.appendChild(lineNoText);
-            svg.appendChild(lineNoGroup);
+            const lineGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            lineGroup.setAttribute('transform', `translate(768.75,111.09) scale(0.93,1)`);
+            const lineText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            lineText.setAttribute('x', '0'); lineText.setAttribute('y', '0'); lineText.setAttribute('text-anchor', 'middle');
+            lineText.setAttribute('dominant-baseline', 'middle'); lineText.setAttribute('font-size', lineSize+'px');
+            lineText.setAttribute('font-weight', 'bold'); lineText.setAttribute('fill', 'white');
+            lineText.setAttribute('font-family', lineFont); lineText.setAttribute('letter-spacing', '0.02em');
+            lineText.setAttribute('line-height', '40pt');
+            lineText.textContent = lineNo;
+            lineGroup.appendChild(lineText);
+            svg.appendChild(lineGroup);
         }
 
-        function updateDisplay() {
-            redrawCanvas();
-            updateTextLayer();
-        }
+        function updateDisplay() { redrawCanvas(); updateTextLayer(); }
 
-        newStationInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addStation();
-        });
-
+        newStationInput.addEventListener('keypress', e => e.key === 'Enter' && addStation());
         startChineseInput.addEventListener('input', updateDisplay);
         startEnglishInput.addEventListener('input', updateDisplay);
         endChineseInput.addEventListener('input', updateDisplay);
@@ -1289,14 +1072,9 @@
 
         window.addEventListener('load', () => {
             mainStation.name = startChineseInput.value;
-            subStation = { 
-                name: endChineseInput.value, 
-                metroLines: [4], 
-                isBRT: false 
-            };
+            subStation = { name: endChineseInput.value, metroLines: [4], isBRT: false };
             renderStationsList();
             updateDisplay();
-            // 移动端初始缩放调整
             if (window.innerWidth <= 768) {
                 scale = 0.5;
                 translateX = (window.innerWidth * 0.5 - 2415 * 0.5) / 1;
@@ -1305,35 +1083,22 @@
             applyTransform();
         });
 
-        window.exportSave = function() {
-            const saveData = {
-                lineNo: lineNoInput.value,
-                startChinese: startChineseInput.value,
-                startEnglish: startEnglishInput.value,
-                endChinese: endChineseInput.value,
-                endEnglish: endEnglishInput.value,
-                mainStation: mainStation,
-                subStation: subStation,
-                stations: stations,
-                scale: scale,
-                translateX: translateX,
-                translateY: translateY
-            };
-            const dataStr = JSON.stringify(saveData, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
+        window.exportSave = () => {
+            const data = { lineNo:lineNoInput.value, startChinese:startChineseInput.value, startEnglish:startEnglishInput.value,
+                endChinese:endChineseInput.value, endEnglish:endEnglishInput.value, mainStation, subStation, stations, scale, translateX, translateY };
+            const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
             const a = document.createElement('a');
-            a.href = url;
+            a.href = URL.createObjectURL(blob);
             a.download = '线路图存档.json';
             a.click();
-            URL.revokeObjectURL(url);
+            URL.revokeObjectURL(a.href);
         };
 
-        window.importSave = function(event) {
+        window.importSave = (event) => {
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = (e) => {
                 try {
                     const data = JSON.parse(e.target.result);
                     lineNoInput.value = data.lineNo || 'B53';
@@ -1344,15 +1109,13 @@
                     mainStation = data.mainStation || { name: '主站', metroLines: [], isBRT: false };
                     subStation = data.subStation || { name: '副站', metroLines: [], isBRT: false };
                     stations = data.stations || [];
-                    scale = data.scale !== undefined ? data.scale : 1.0;
-                    translateX = data.translateX !== undefined ? data.translateX : 0;
-                    translateY = data.translateY !== undefined ? data.translateY : 0;
+                    scale = data.scale ?? 1.0;
+                    translateX = data.translateX ?? 0;
+                    translateY = data.translateY ?? 0;
                     renderStationsList();
                     updateDisplay();
                     applyTransform();
-                } catch (err) {
-                    alert('存档文件格式错误');
-                }
+                } catch { alert('存档文件格式错误'); }
             };
             reader.readAsText(file);
             event.target.value = '';
