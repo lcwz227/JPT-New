@@ -345,6 +345,7 @@
             overflow: hidden;
             background-color: #2d2d2d;
             cursor: grab;
+            touch-action: none; /* 防止触摸时页面滚动 */
         }
         .canvas-area.dragging {
             cursor: grabbing;
@@ -598,45 +599,76 @@
             mapContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
         }
 
-        canvasArea.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const delta = e.deltaY > 0 ? 0.9 : 1.1;
-            scale *= delta;
-            if (scale < MIN_SCALE) scale = MIN_SCALE;
-            if (scale > MAX_SCALE) scale = MAX_SCALE;
-            applyTransform();
-        });
-
+        // 鼠标事件
         let isDraggingCanvas = false;
         let startTranslateX, startTranslateY, startMouseX, startMouseY;
 
-        canvasArea.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
+        function handleDragStart(clientX, clientY) {
             isDraggingCanvas = true;
             canvasArea.classList.add('dragging');
             startTranslateX = translateX;
             startTranslateY = translateY;
-            startMouseX = e.clientX;
-            startMouseY = e.clientY;
-            e.preventDefault();
-        });
+            startMouseX = clientX;
+            startMouseY = clientY;
+        }
 
-        document.addEventListener('mousemove', (e) => {
+        function handleDragMove(clientX, clientY) {
             if (!isDraggingCanvas) return;
-            const dx = e.clientX - startMouseX;
-            const dy = e.clientY - startMouseY;
+            const dx = clientX - startMouseX;
+            const dy = clientY - startMouseY;
             translateX = startTranslateX + dx;
             translateY = startTranslateY + dy;
             applyTransform();
-            e.preventDefault();
-        });
+        }
 
-        document.addEventListener('mouseup', (e) => {
+        function handleDragEnd() {
             if (isDraggingCanvas) {
                 isDraggingCanvas = false;
                 canvasArea.classList.remove('dragging');
             }
+        }
+
+        // 鼠标事件监听
+        canvasArea.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            handleDragStart(e.clientX, e.clientY);
         });
+
+        document.addEventListener('mousemove', (e) => {
+            handleDragMove(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mouseup', () => {
+            handleDragEnd();
+        });
+
+        // 触摸事件监听（移动端）
+        canvasArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            if (touch) {
+                handleDragStart(touch.clientX, touch.clientY);
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            if (touch) {
+                handleDragMove(touch.clientX, touch.clientY);
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleDragEnd();
+        }, { passive: false });
+
+        document.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            handleDragEnd();
+        }, { passive: false });
 
         window.togglePanel = function() {
             panelWrapper.classList.toggle('collapsed');
@@ -1220,12 +1252,14 @@
             };
             renderStationsList();
             updateDisplay();
-            applyTransform();
             // 移动端初始缩放调整
             if (window.innerWidth <= 768) {
                 scale = 0.5;
-                applyTransform();
+                // 调整初始平移使画布大致居中
+                translateX = (window.innerWidth * 0.5 - 2415 * 0.5) / 1; // 粗略居中，可微调
+                translateY = 0;
             }
+            applyTransform();
         });
 
         window.exportSave = function() {
