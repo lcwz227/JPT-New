@@ -1,9 +1,7 @@
-// control-panel.js - 控制盘交互逻辑
 (function() {
     const panelWrapper = document.getElementById('panelWrapper');
     const resizeHandle = document.getElementById('resizeHandle');
 
-    // 折叠/展开功能
     window.togglePanel = function() {
         panelWrapper.classList.toggle('collapsed');
         const collapseBtn = document.querySelector('.collapse-btn');
@@ -12,7 +10,6 @@
         }
     };
 
-    // 宽度拖拽
     if (resizeHandle) {
         let startX, startWidth;
 

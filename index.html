@@ -8,14 +8,495 @@
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
-        /* 样式与之前完全相同（此处省略，请从之前的完整版复制） */
-        /* 确保所有样式保留，包括折叠标签文字样式不变 */
+        @font-face {
+            font-family: 'Arial Black';
+            src: url('ariblk.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'Source Han Sans Bold';
+            src: url('SourceHansansSC-Bold-2.otf') format('opentype');
+            font-weight: bold;
+            font-style: normal;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            display: flex;
+            height: 100vh;
+            background-color: #2d2d2d;
+            overflow: hidden;
+        }
+        .control-panel-wrapper {
+            position: relative;
+            height: 100vh;
+            display: flex;
+            flex-shrink: 0;
+            transition: width 0.2s;
+            width: 520px;
+            z-index: 200;
+            touch-action: pan-y;
+        }
+        .control-panel-wrapper.collapsed {
+            width: 50px;
+        }
+        .control-panel-wrapper.collapsed .control-panel {
+            display: none;
+        }
+        .control-panel-wrapper.collapsed .collapsed-tab {
+            display: flex;
+        }
+        .collapsed-tab {
+            width: 50px;
+            height: 100%;
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(2px);
+            border-right: 1px solid rgba(0,0,0,0.2);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 20px;
+            cursor: pointer;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            touch-action: pan-y;
+        }
+        .collapsed-tab span {
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e2b3a;
+            margin-top: 20px;
+        }
+        .control-panel {
+            width: 100%;
+            height: 100%;
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(2px);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+            touch-action: pan-y;
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .collapse-btn {
+            background: #2a7de1;
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+        .panel-title {
+            font-weight: bold;
+            font-size: 16px;
+            color: #1e2b3a;
+        }
+        .resize-handle {
+            width: 8px;
+            height: 30px;
+            background: #ccc;
+            border-radius: 4px;
+            cursor: ew-resize;
+            opacity: 0.6;
+            transition: 0.2s;
+            touch-action: none;
+        }
+        .resize-handle:hover {
+            opacity: 1;
+            background: #2a7de1;
+        }
+        .tabs {
+            display: flex;
+            gap: 8px;
+            border-bottom: 2px solid #2a7de1;
+            padding-bottom: 8px;
+        }
+        .tab-btn {
+            padding: 8px 16px;
+            background: #e0e7ff;
+            border: none;
+            border-radius: 20px 20px 0 0;
+            cursor: pointer;
+            font-weight: 600;
+            color: #1e2b3a;
+            transition: 0.2s;
+            touch-action: manipulation;
+        }
+        .tab-btn.active {
+            background: #2a7de1;
+            color: white;
+        }
+        .tab-page { display: block; }
+        .tab-page.hidden { display: none; }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            font-weight: 600;
+            font-size: 13px;
+            color: #3a4a5a;
+            text-transform: uppercase;
+        }
+        .input-group input, .input-group select {
+            padding: 10px 12px;
+            border: 1px solid #ccd7e4;
+            border-radius: 10px;
+            font-size: 14px;
+            background: white;
+            touch-action: manipulation;
+        }
+        .btn {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: white;
+            color: #1e2b3a;
+            border: 1px solid #cbd5e1;
+            touch-action: manipulation;
+        }
+        .btn-add {
+            background: #2a7de1;
+            color: white;
+            border: none;
+        }
+        .btn-clear {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .btn-disabled {
+            background: #aaa;
+            color: #eee;
+            cursor: not-allowed;
+            border: 1px solid #888;
+            pointer-events: auto;
+        }
+        hr {
+            border: 1px solid #e9eef2;
+            width: 100%;
+            margin: 8px 0;
+        }
+        .stations-list {
+            border-radius: 18px;
+            padding: 16px 12px;
+            background: #f8fafc;
+            border: 1px solid #dee7ef;
+            overflow-y: auto;
+            max-height: 500px;
+            touch-action: pan-y;
+        }
+        .stations-list-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 12px;
+        }
+        .station-item {
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 16px;
+            gap: 8px;
+            border: 1px solid rgba(0,0,0,0.05);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            cursor: default;
+            touch-action: pan-y;
+        }
+        .station-item.main { background-color: #e6f7e6; }
+        .station-item.sub { background-color: #e6f0ff; }
+        .station-item.middle { background-color: white; }
+        .station-item.middle { cursor: grab; }
+        .station-item.middle:active { cursor: grabbing; }
+        .station-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .station-name-input {
+            flex: 2;
+            min-width: 140px;
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 30px;
+            font-size: 14px;
+            background: white;
+            color: black;
+            pointer-events: auto;
+            cursor: text;
+            touch-action: manipulation;
+        }
+        .direction-buttons {
+            display: flex;
+            gap: 4px;
+        }
+        .dir-btn {
+            background: none;
+            border: 1px solid #cbd5e1;
+            border-radius: 30px;
+            width: 36px;
+            height: 36px;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.1s;
+            background: white;
+            touch-action: manipulation;
+        }
+        .dir-btn.active {
+            background: #2a7de1;
+            color: white;
+            border-color: #2a7de1;
+        }
+        .metro-section {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 8px;
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 40px;
+            overflow-x: auto;
+            touch-action: pan-x;
+        }
+        .metro-label {
+            font-weight: bold;
+            color: #1e2b3a;
+            margin-right: 4px;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        .metro-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        .metro-checkbox input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+        }
+        .brt-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 2px;
+        }
+        .brt-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 14px;
+        }
+        .brt-checkbox input {
+            width: 18px;
+            height: 18px;
+        }
+        .btn-delete {
+            background: none;
+            border: none;
+            color: #f43f5e;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            padding: 0 6px;
+            border-radius: 30px;
+            margin-left: auto;
+            touch-action: manipulation;
+        }
+        .btn-delete:hover {
+            background: #fee2e2;
+        }
+        .batch-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            align-items: center;
+        }
+        .batch-input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 30px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background-color: #2d2d2d;
+            cursor: grab;
+            touch-action: none;
+            min-height: 0;
+        }
+        .canvas-area.dragging {
+            cursor: grabbing;
+        }
+        #map-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 2415px;
+            height: 689px;
+            margin: 0;
+            transform-origin: 0 0;
+            transition: transform 0.1s;
+            will-change: transform;
+        }
+        #bg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2415px;
+            height: 689px;
+            z-index: 1;
+            user-select: none;
+            pointer-events: none;
+        }
+        #route-svg { display: none; }
+        #text-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2415px;
+            height: 689px;
+            z-index: 90;
+            pointer-events: none;
+        }
+        .station-marker {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .station-icon {
+            width: 32px;
+            height: 32px;
+            display: block;
+        }
+        .station-label {
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            font-family: 'Source Han Sans Bold', '思源黑体 Bold', 'Noto Sans CJK SC Bold', 'Microsoft YaHei', sans-serif;
+            font-weight: bold;
+            font-size: 25.72px;
+            color: black;
+            white-space: nowrap;
+            background: none;
+            border: none;
+            padding: 0;
+            line-height: 1.2;
+            margin-top: 4px;
+        }
+        .brt-marker {
+            width: 32px;
+            height: 26px;
+            margin-top: 2px;
+            object-fit: contain;
+        }
+        .metro-marker {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            z-index: 102;
+            pointer-events: none;
+        }
+        .metro-marker img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            .control-panel-wrapper {
+                width: 100% !important;
+                height: auto;
+                max-height: 50vh;
+                flex-shrink: 0;
+            }
+            .resize-handle {
+                display: none;
+            }
+            .control-panel {
+                padding: 12px;
+                gap: 10px;
+                height: auto;
+                max-height: 50vh;
+            }
+            .panel-header .panel-title {
+                font-size: 14px;
+            }
+            .stations-list {
+                max-height: 200px;
+            }
+            .station-name-input {
+                font-size: 13px;
+                padding: 6px 8px;
+            }
+            .dir-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 13px;
+            }
+            .metro-checkbox {
+                font-size: 12px;
+            }
+            .btn {
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+            .canvas-area {
+                flex: 1 1 auto;
+                height: auto;
+                min-height: 0;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="control-panel-wrapper" id="panelWrapper">
         <div class="collapsed-tab" id="collapsedTab" onclick="togglePanel()">
-            <span>控制盘</span>  <!-- 修改为“控制盘” -->
+            <span>控制盘</span>
         </div>
         <div class="control-panel" id="controlPanel">
             <div class="panel-header">
@@ -83,7 +564,6 @@
         </div>
     </div>
     <script>
-        // ---------- 全局变量 ----------
         const MAP_WIDTH = 2415;
         const MAP_HEIGHT = 689;
         const FIXED_START_X = 128;
@@ -104,7 +584,6 @@
         const METRO_IMG = { 1:'line1.png', 2:'line2.png', 3:'line3.png', 4:'line4.png', 6:'line6.png', 8:'line8.png' };
         const BRT_IMG = 'BRT.png';
 
-        // 画布变换参数
         let scale = 1.0;
         let translateX = 0;
         let translateY = 0;
@@ -113,14 +592,8 @@
 
         const canvasArea = document.getElementById('canvasArea');
         const mapContainer = document.getElementById('map-container');
-
-        // 应用变换
-        function applyTransform() {
-            mapContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
-        }
-
-        // ---------- 以下为其他功能（站点列表、存档等），与原代码一致 ----------
         const panelWrapper = document.getElementById('panelWrapper');
+        const resizeHandle = document.getElementById('resizeHandle');
         const lineNoInput = document.getElementById('lineNo');
         const startChineseInput = document.getElementById('startChinese');
         const startEnglishInput = document.getElementById('startStation');
@@ -132,13 +605,150 @@
         const tabStationBtn = document.getElementById('tabStationBtn');
         const linePage = document.getElementById('linePage');
         const stationPage = document.getElementById('stationPage');
+        const exportBtn = document.getElementById('exportBtn');
 
-        document.getElementById('exportBtn').addEventListener('click', e => {
+        // 记录展开时的宽度
+        let expandedWidth = 520; // 默认展开宽度
+
+        // 直接应用变换，不进行任何钳制
+        function applyTransform() {
+            mapContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        }
+
+        function togglePanel() {
+            if (panelWrapper.classList.contains('collapsed')) {
+                // 展开
+                panelWrapper.classList.remove('collapsed');
+                panelWrapper.style.width = expandedWidth + 'px';
+                const collapseBtn = document.querySelector('.collapse-btn');
+                if (collapseBtn) collapseBtn.textContent = '◀';
+            } else {
+                // 折叠：保存当前宽度，强制设为50px
+                expandedWidth = panelWrapper.offsetWidth; // 保存展开宽度
+                panelWrapper.classList.add('collapsed');
+                panelWrapper.style.width = '50px';
+                const collapseBtn = document.querySelector('.collapse-btn');
+                if (collapseBtn) collapseBtn.textContent = '▶';
+            }
+            applyTransform(); // 应用变换（无钳制）
+        }
+        window.togglePanel = togglePanel;
+
+        if (resizeHandle) {
+            let startX, startWidth;
+            resizeHandle.addEventListener('pointerdown', (e) => {
+                if (panelWrapper.classList.contains('collapsed')) return; // 折叠时不可拖拽
+                e.preventDefault();
+                startX = e.clientX;
+                startWidth = panelWrapper.offsetWidth;
+                document.addEventListener('pointermove', resizeMove);
+                document.addEventListener('pointerup', resizeStop);
+            });
+            function resizeMove(e) {
+                let newWidth = startWidth + (e.clientX - startX);
+                newWidth = Math.min(800, Math.max(150, newWidth));
+                panelWrapper.style.width = newWidth + 'px';
+                expandedWidth = newWidth; // 更新保存的宽度
+                applyTransform();
+            }
+            function resizeStop() {
+                document.removeEventListener('pointermove', resizeMove);
+                document.removeEventListener('pointerup', resizeStop);
+            }
+        }
+
+        let isDraggingCanvas = false;
+        let startTranslateX, startTranslateY, startMouseX, startMouseY;
+
+        function initCanvasDrag() {
+            canvasArea.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                isDraggingCanvas = true;
+                canvasArea.classList.add('dragging');
+                startTranslateX = translateX;
+                startTranslateY = translateY;
+                startMouseX = e.clientX;
+                startMouseY = e.clientY;
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (!isDraggingCanvas) return;
+                const dx = e.clientX - startMouseX;
+                const dy = e.clientY - startMouseY;
+                translateX = startTranslateX + dx;
+                translateY = startTranslateY + dy;
+                applyTransform();
+            });
+            document.addEventListener('mouseup', () => {
+                if (isDraggingCanvas) {
+                    isDraggingCanvas = false;
+                    canvasArea.classList.remove('dragging');
+                }
+            });
+            canvasArea.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * delta));
+                applyTransform();
+            });
+
+            let touchStartDistance = 0;
+            let touchStartScale = 1;
+            canvasArea.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touches = e.touches;
+                if (touches.length === 1) {
+                    isDraggingCanvas = true;
+                    canvasArea.classList.add('dragging');
+                    startTranslateX = translateX;
+                    startTranslateY = translateY;
+                    startMouseX = touches[0].clientX;
+                    startMouseY = touches[0].clientY;
+                } else if (touches.length === 2) {
+                    const dx = touches[0].clientX - touches[1].clientX;
+                    const dy = touches[0].clientY - touches[1].clientY;
+                    touchStartDistance = Math.sqrt(dx * dx + dy * dy);
+                    touchStartScale = scale;
+                }
+            }, { passive: false });
+            canvasArea.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touches = e.touches;
+                if (touches.length === 1 && isDraggingCanvas) {
+                    const dx = touches[0].clientX - startMouseX;
+                    const dy = touches[0].clientY - startMouseY;
+                    translateX = startTranslateX + dx;
+                    translateY = startTranslateY + dy;
+                    applyTransform();
+                } else if (touches.length === 2) {
+                    const dx = touches[0].clientX - touches[1].clientX;
+                    const dy = touches[0].clientY - touches[1].clientY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (touchStartDistance > 0) {
+                        const newScale = touchStartScale * (distance / touchStartDistance);
+                        scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
+                        applyTransform();
+                    }
+                }
+            }, { passive: false });
+            canvasArea.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                isDraggingCanvas = false;
+                canvasArea.classList.remove('dragging');
+            }, { passive: false });
+            canvasArea.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+                isDraggingCanvas = false;
+                canvasArea.classList.remove('dragging');
+            }, { passive: false });
+        }
+        initCanvasDrag();
+
+        exportBtn.addEventListener('click', e => {
             e.preventDefault();
             alert('该功能暂不开启');
         });
 
-        // 选项卡
         tabLineBtn.addEventListener('click', () => {
             tabLineBtn.classList.add('active');
             tabStationBtn.classList.remove('active');
@@ -156,41 +766,42 @@
         function renderStationsList() {
             const container = stationsContainer;
             container.innerHTML = '';
-
             const mainDiv = createStationItem('main', mainStation, true);
             container.appendChild(mainDiv);
             stations.forEach((s, i) => container.appendChild(createStationItem('middle', s, false, i)));
             container.appendChild(createStationItem('sub', subStation, true));
-
             new Sortable(container, {
                 animation: 150,
                 handle: '.station-item.middle',
                 onEnd: (evt) => {
-                    const oldIndex = evt.oldIndex - 1;
-                    const newIndex = evt.newIndex - 1;
-                    if (oldIndex === newIndex || oldIndex < 0 || newIndex < 0) return;
-                    if (evt.newIndex === 0) {
-                        // 成为主站
-                        const moved = stations[oldIndex];
-                        if (moved) {
-                            const oldMain = { ...mainStation, direction: 'both' };
-                            stations.splice(oldIndex, 1);
-                            stations.splice(oldIndex, 0, oldMain);
-                            mainStation = { ...moved };
+                    const oldIndex = evt.oldIndex;
+                    const newIndex = evt.newIndex;
+
+                    if (newIndex === 0) {
+                        const movedStation = stations[oldIndex - 1];
+                        if (movedStation) {
+                            const oldMainCopy = { ...mainStation, direction: 'both' };
+                            stations.splice(oldIndex - 1, 1);
+                            stations.splice(oldIndex - 1, 0, oldMainCopy);
+                            mainStation = { ...movedStation };
                         }
-                    } else if (evt.newIndex === stations.length + 1) {
-                        // 成为副站
-                        const moved = stations[oldIndex];
-                        if (moved) {
-                            const oldSub = { ...subStation, direction: 'both' };
-                            stations.splice(oldIndex, 1);
-                            stations.splice(oldIndex, 0, oldSub);
-                            subStation = { ...moved };
+                    }
+                    else if (newIndex === stations.length + 1) {
+                        const movedStation = stations[oldIndex - 1];
+                        if (movedStation) {
+                            const oldSubCopy = { ...subStation, direction: 'both' };
+                            stations.splice(oldIndex - 1, 1);
+                            stations.splice(oldIndex - 1, 0, oldSubCopy);
+                            subStation = { ...movedStation };
                         }
-                    } else {
-                        // 中间站重排
-                        const moved = stations.splice(oldIndex, 1)[0];
-                        stations.splice(newIndex, 0, moved);
+                    }
+                    else {
+                        const oldMiddleIndex = oldIndex - 1;
+                        const newMiddleIndex = newIndex - 1;
+                        if (oldMiddleIndex !== newMiddleIndex && oldMiddleIndex >= 0 && newMiddleIndex >= 0 && oldMiddleIndex < stations.length && newMiddleIndex < stations.length) {
+                            const moved = stations.splice(oldMiddleIndex, 1)[0];
+                            stations.splice(newMiddleIndex, 0, moved);
+                        }
                     }
                     renderStationsList();
                     updateDisplay();
@@ -203,7 +814,6 @@
             div.className = `station-item ${type}`;
             const row = document.createElement('div');
             row.className = 'station-row';
-
             const nameInput = document.createElement('input');
             nameInput.className = 'station-name-input';
             nameInput.value = data.name;
@@ -212,7 +822,6 @@
                 updateDisplay();
             });
             row.appendChild(nameInput);
-
             if (type === 'middle') {
                 const btnGroup = document.createElement('div');
                 btnGroup.className = 'direction-buttons';
@@ -241,7 +850,6 @@
                 row.appendChild(del);
             }
             div.appendChild(row);
-
             const metroDiv = document.createElement('div');
             metroDiv.className = 'metro-section';
             metroDiv.innerHTML = '<span class="metro-label">地铁换乘线:</span>';
@@ -262,7 +870,6 @@
                 metroDiv.appendChild(label);
             });
             div.appendChild(metroDiv);
-
             const brtRow = document.createElement('div');
             brtRow.className = 'brt-row';
             const brtLabel = document.createElement('label');
@@ -290,7 +897,6 @@
                 updateDisplay();
             }
         };
-
         window.batchAdd = () => {
             const namesStr = document.getElementById('batchNames').value.trim();
             if (!namesStr) return;
@@ -301,7 +907,6 @@
             renderStationsList();
             updateDisplay();
         };
-
         window.deleteAllStations = () => {
             if (confirm('确定要删除所有中间站吗？')) {
                 stations = [];
@@ -309,7 +914,6 @@
                 updateDisplay();
             }
         };
-
         window.clearAll = () => {
             if (confirm('确定要清空所有内容吗？')) {
                 stations = [];
@@ -329,7 +933,6 @@
             const mapContainer = document.getElementById('map-container');
             const old = mapContainer.querySelectorAll('.station-marker, .metro-marker');
             old.forEach(m => m.remove());
-
             const startName = startEnglishInput.value;
             const endName = endEnglishInput.value;
             const drawList = [
@@ -337,7 +940,6 @@
                 ...stations.map(s => ({ type:'middle', name:s.name, direction:s.direction, x:null, metroLines:s.metroLines, isBRT:s.isBRT })),
                 { type:'sub', name:subStation.name, x:FIXED_END_X, metroLines:subStation.metroLines, isBRT:subStation.isBRT }
             ];
-
             const middleIndices = drawList.reduce((acc,item,i) => item.type==='middle' ? [...acc,i] : acc, []);
             const startExists = startName !== '';
             const endExists = endName !== '';
@@ -348,14 +950,12 @@
                     drawList[idx].x = left + (right - left) * (i+1)/(middleIndices.length+1);
                 });
             }
-
             drawList.forEach(item => {
                 if (item.x === null) return;
                 const marker = document.createElement('div');
                 marker.className = 'station-marker';
                 marker.style.left = (item.x - ICON_SIZE/2) + 'px';
                 marker.style.top = (FIXED_Y - ICON_SIZE/2) + 'px';
-
                 let imgSrc = '';
                 if (item.type === 'main') imgSrc = IMAGE_MAIN;
                 else if (item.type === 'sub') imgSrc = IMAGE_SUB;
@@ -367,12 +967,10 @@
                 icon.src = imgSrc;
                 icon.alt = item.name;
                 marker.appendChild(icon);
-
                 const label = document.createElement('div');
                 label.className = 'station-label';
                 label.textContent = item.name;
                 marker.appendChild(label);
-
                 if (item.isBRT) {
                     const brt = document.createElement('img');
                     brt.className = 'brt-marker';
@@ -381,8 +979,6 @@
                     marker.appendChild(brt);
                 }
                 mapContainer.appendChild(marker);
-
-                // 地铁标志
                 const lines = item.metroLines || [];
                 lines.forEach((lineNum, idx) => {
                     const metroY = METRO_BASE_Y - 37 * (lines.length - 1 - idx);
@@ -409,17 +1005,14 @@
         function updateTextLayer() {
             const svg = document.getElementById('text-svg');
             svg.innerHTML = '';
-
             const startCh = startChineseInput.value || '';
             const endCh = endChineseInput.value || '';
             const startEn = startEnglishInput.value || '';
             const endEn = endEnglishInput.value || '';
             const lineNo = lineNoInput.value || 'B53';
-
             const chFont = '"Source Han Sans Bold", "思源黑体 Bold", "Noto Sans CJK SC Bold", "Microsoft YaHei", sans-serif';
             const enFont = '"Source Han Sans Bold", "思源黑体 Bold", "Noto Sans CJK SC Bold", "Microsoft YaHei", sans-serif';
             const lineFont = '"Arial Black", "Arial Black", sans-serif';
-
             const chSize = 53, enSize = 22, lineSize = 90;
             const startW = getTextWidth(startCh, chSize, chFont);
             const endW = getTextWidth(endCh, chSize, chFont);
@@ -430,10 +1023,8 @@
             const dashX = x0 + startW + gap;
             const endX = dashX + dashW + gap;
             const yEn = 121;
-
             const preservedStart = startEn.replace(/ /g, '\u00A0');
             const preservedEnd = endEn.replace(/ /g, '\u00A0');
-
             if (startCh) {
                 const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 t.setAttribute('x', x0); t.setAttribute('y', yCh); t.setAttribute('dominant-baseline', 'middle');
@@ -446,7 +1037,6 @@
             dash.setAttribute('font-size', chSize+'px'); dash.setAttribute('fill', 'white');
             dash.setAttribute('font-family', chFont); dash.setAttribute('font-weight', 'bold');
             dash.textContent = '—'; svg.appendChild(dash);
-
             if (endCh) {
                 const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 t.setAttribute('x', endX); t.setAttribute('y', yCh); t.setAttribute('dominant-baseline', 'middle');
@@ -454,7 +1044,6 @@
                 t.setAttribute('font-family', chFont); t.setAttribute('font-weight', 'bold');
                 t.textContent = endCh; svg.appendChild(t);
             }
-
             if (startEn && endEn) {
                 const startT = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 startT.setAttribute('x', x0); startT.setAttribute('y', yEn); startT.setAttribute('dominant-baseline', 'hanging');
@@ -463,7 +1052,6 @@
                 startT.setAttribute('textLength', startW); startT.setAttribute('lengthAdjust', 'spacing');
                 startT.setAttribute('xml:space', 'preserve');
                 startT.textContent = preservedStart; svg.appendChild(startT);
-
                 const dashEnW = getTextWidth('—', enSize, enFont);
                 const dashEnX = (x0 + startW + endX) / 2 - dashEnW / 2;
                 const dashEn = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -471,7 +1059,6 @@
                 dashEn.setAttribute('font-size', enSize+'px'); dashEn.setAttribute('fill', 'white');
                 dashEn.setAttribute('font-family', chFont); dashEn.setAttribute('font-weight', 'bold');
                 dashEn.textContent = '—'; svg.appendChild(dashEn);
-
                 const endT = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 endT.setAttribute('x', endX + endW); endT.setAttribute('y', yEn); endT.setAttribute('text-anchor', 'end');
                 endT.setAttribute('dominant-baseline', 'hanging'); endT.setAttribute('font-size', enSize+'px');
@@ -496,7 +1083,6 @@
                 endT.setAttribute('xml:space', 'preserve');
                 endT.textContent = preservedEnd; svg.appendChild(endT);
             }
-
             const lineGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             lineGroup.setAttribute('transform', `translate(768.75,111.09) scale(0.93,1)`);
             const lineText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -519,14 +1105,6 @@
         endEnglishInput.addEventListener('input', updateDisplay);
         lineNoInput.addEventListener('input', updateDisplay);
 
-        // 自动检测设备并加载对应的交互脚本
-        function loadScript(src) {
-            const script = document.createElement('script');
-            script.src = src;
-            script.async = false;
-            document.body.appendChild(script);
-        }
-
         window.addEventListener('load', () => {
             mainStation.name = startChineseInput.value;
             subStation = { name: endChineseInput.value, metroLines: [4], isBRT: false };
@@ -537,13 +1115,8 @@
                 translateX = (window.innerWidth * 0.5 - 2415 * 0.5) / 1;
                 translateY = 0;
                 applyTransform();
-            }
-
-            // 根据触摸能力加载对应脚本
-            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-                loadScript('phonetouch.js');
             } else {
-                loadScript('cmputertouch.js');
+                applyTransform();
             }
         });
 
@@ -585,8 +1158,5 @@
             event.target.value = '';
         };
     </script>
-    <!-- 引入控制盘交互脚本 -->
-    <script src="control-panel.js"></script>
-    <!-- 画布交互脚本将动态加载 -->
 </body>
 </html>

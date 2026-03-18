@@ -1,5 +1,12 @@
-// 手机端触摸交互（单指拖拽 + 双指缩放）
-(function() {
+(function(global) {
+    'use strict';
+
+    const canvasArea = global.canvasArea;
+    if (!canvasArea) {
+        console.error('canvasArea not found');
+        return;
+    }
+
     let isDragging = false;
     let startX, startY, startTranslateX, startTranslateY;
     let initialPinchDistance = 0;
@@ -20,11 +27,11 @@
             canvasArea.classList.add('dragging');
             startX = touches[0].clientX;
             startY = touches[0].clientY;
-            startTranslateX = translateX;
-            startTranslateY = translateY;
+            startTranslateX = global.translateX;
+            startTranslateY = global.translateY;
         } else if (touches.length === 2) {
             initialPinchDistance = getPinchDistance(touches);
-            pinchScale = scale;
+            pinchScale = global.scale;
         }
     }, { passive: false });
 
@@ -34,15 +41,15 @@
         if (touches.length === 1 && isDragging) {
             const dx = touches[0].clientX - startX;
             const dy = touches[0].clientY - startY;
-            translateX = startTranslateX + dx;
-            translateY = startTranslateY + dy;
-            applyTransform();
+            global.translateX = startTranslateX + dx;
+            global.translateY = startTranslateY + dy;
+            global.applyTransform();
         } else if (touches.length === 2) {
             const currentDistance = getPinchDistance(touches);
             if (initialPinchDistance > 0 && currentDistance > 0) {
                 const newScale = pinchScale * (currentDistance / initialPinchDistance);
-                scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, newScale));
-                applyTransform();
+                global.scale = Math.min(global.MAX_SCALE, Math.max(global.MIN_SCALE, newScale));
+                global.applyTransform();
             }
         }
     }, { passive: false });
@@ -58,4 +65,4 @@
         isDragging = false;
         canvasArea.classList.remove('dragging');
     }, { passive: false });
-})();
+})(window);

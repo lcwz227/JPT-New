@@ -1,5 +1,12 @@
-// 电脑端触摸/鼠标交互（鼠标拖拽 + 滚轮缩放）
-(function() {
+(function(global) {
+    'use strict';
+
+    const canvasArea = global.canvasArea;
+    if (!canvasArea) {
+        console.error('canvasArea not found');
+        return;
+    }
+
     let isDragging = false;
     let startX, startY, startTranslateX, startTranslateY;
 
@@ -10,20 +17,20 @@
         canvasArea.classList.add('dragging');
         startX = e.clientX;
         startY = e.clientY;
-        startTranslateX = translateX;
-        startTranslateY = translateY;
+        startTranslateX = global.translateX;
+        startTranslateY = global.translateY;
     });
 
-    document.addEventListener('mousemove', (e) => {
+    global.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        translateX = startTranslateX + dx;
-        translateY = startTranslateY + dy;
-        applyTransform();
+        global.translateX = startTranslateX + dx;
+        global.translateY = startTranslateY + dy;
+        global.applyTransform();
     });
 
-    document.addEventListener('mouseup', () => {
+    global.addEventListener('mouseup', () => {
         if (isDragging) {
             isDragging = false;
             canvasArea.classList.remove('dragging');
@@ -33,7 +40,7 @@
     canvasArea.addEventListener('wheel', (e) => {
         e.preventDefault();
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * delta));
-        applyTransform();
+        global.scale = Math.min(global.MAX_SCALE, Math.max(global.MIN_SCALE, global.scale * delta));
+        global.applyTransform();
     });
-})();
+})(window);
