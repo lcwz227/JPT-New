@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <title>济南公交新版线路图生成器 v1.0.0</title>
     <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
@@ -426,6 +426,51 @@
             height: 100%;
             object-fit: contain;
             display: block;
+        }
+
+        /* 手机端适配 */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            .control-panel-wrapper {
+                width: 100% !important;
+                height: 60vh;
+                max-height: 500px;
+            }
+            .resize-handle {
+                display: none;
+            }
+            .control-panel {
+                padding: 12px;
+                gap: 10px;
+            }
+            .panel-header .panel-title {
+                font-size: 14px;
+            }
+            .stations-list {
+                max-height: 200px;
+            }
+            .station-name-input {
+                font-size: 13px;
+                padding: 6px 8px;
+            }
+            .dir-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 13px;
+            }
+            .metro-checkbox {
+                font-size: 12px;
+            }
+            .btn {
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+            .canvas-area {
+                flex: 1;
+                height: 40vh;
+            }
         }
     </style>
 </head>
@@ -1176,6 +1221,11 @@
             renderStationsList();
             updateDisplay();
             applyTransform();
+            // 移动端初始缩放调整
+            if (window.innerWidth <= 768) {
+                scale = 0.5;
+                applyTransform();
+            }
         });
 
         window.exportSave = function() {
